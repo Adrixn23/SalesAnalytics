@@ -1,0 +1,82 @@
+﻿{
+   "CodeGenerationMode": 4,
+   "ContextClassName": "SalesAnalyticsDBContext",
+   "ContextNamespace": null,
+   "FilterSchemas": false,
+   "IncludeConnectionString": false,
+   "IrregularWords": null,
+   "MinimumProductVersion": "2.6.1604",
+   "ModelNamespace": null,
+   "OutputContextPath": null,
+   "OutputPath": "Models",
+   "PluralRules": null,
+   "PreserveCasingWithRegex": true,
+   "ProjectRootNamespace": "SistemaVentas",
+   "Schemas": null,
+   "SelectedHandlebarsLanguage": 3,
+   "SelectedToBeGenerated": 0,
+   "SingularRules": null,
+   "T4TemplatePath": null,
+   "Tables": [
+      {
+         "Name": "[Catalog].[Categories]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[Catalog].[Products]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[Geo].[Cities]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[Geo].[Countries]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[People].[Customers]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[Sales].[OrderDetails]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[Sales].[Orders]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[Sales].[OrderStatus]",
+         "ObjectType": 0
+      }
+   ],
+   "UiHint": null,
+   "UncountableWords": null,
+   "UseAsyncStoredProcedureCalls": true,
+   "UseBoolPropertiesWithoutDefaultSql": false,
+   "UseDatabaseNames": false,
+   "UseDatabaseNamesForRoutines": true,
+   "UseDateOnlyTimeOnly": true,
+   "UseDbContextSplitting": true,
+   "UseDecimalDataAnnotationForSprocResult": true,
+   "UseFluentApiOnly": true,
+   "UseHandleBars": false,
+   "UseHierarchyId": false,
+   "UseInflector": true,
+   "UseInternalAccessModifiersForSprocsAndFunctions": false,
+   "UseLegacyPluralizer": false,
+   "UseManyToManyEntity": false,
+   "UseNoDefaultConstructor": false,
+   "UseNoNavigations": true,
+   "UseNoObjectFilter": false,
+   "UseNodaTime": false,
+   "UseNullableReferences": false,
+   "UsePrefixNavigationNaming": false,
+   "UseSchemaFolders": true,
+   "UseSchemaNamespaces": false,
+   "UseSpatial": false,
+   "UseT4": false,
+   "UseT4Split": false,
+   "UseTypedTvpParameters": true
+}
