@@ -41,7 +41,7 @@ public sealed class OrderStatusService : IEtlService
             }
 
             result.Inserted = newEntities.Count;
-            result.Rejected = 0; // Se asume que no hay rechazos en statuses quemados
+            result.Rejected = 0;
 
             lookup.StatusMap = await _context.OrderStatuses
                 .ToDictionaryAsync(
