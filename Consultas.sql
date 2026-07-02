@@ -1,67 +1,57 @@
--- =========================================================================
--- PARTE 7: CONSULTAS PARA VALIDACIÓN DE INTEGRIDAD Y ANÁLISIS DE DATOS
--- Base de Datos: SalesAnalytics
--- =========================================================================
+use SalesAnalyticsDB;
+go
 
-USE SalesAnalytics;
-GO
+select 
+    c.CategoryName as categoria,
+    count(od.ProductID) as cantidad_productos_vendidos,
+    sum(od.TotalPrice) as ingresos_totales
+from Catalog.Categories c
+inner join Catalog.Products p on c.CategoryID = p.CategoryID
+inner join Sales.OrderDetails od on p.ProductID = od.ProductID
+group by c.CategoryName
+order by ingresos_totales desc;
 
--- 1. Total de ingresos generados por Categoría (Demuestra INNER JOIN múltiple)
-SELECT 
-    c.CategoryName AS Categoria,
-    COUNT(od.ProductID) AS CantidadProductosVendidos,
-    SUM(od.TotalPrice) AS IngresosTotales
-FROM Catalog.Categories c
-INNER JOIN Catalog.Products p ON c.CategoryID = p.CategoryID
-INNER JOIN Sales.OrderDetails od ON p.ProductID = od.ProductID
-GROUP BY c.CategoryName
-ORDER BY IngresosTotales DESC;
+select top 10
+    c.FirstName + ' ' + c.LastName as cliente,
+    c.Email as email,
+    count(o.OrderID) as cantidad_ordenes,
+    sum(od.TotalPrice) as total_gastado
+from People.Customers c
+inner join Sales.Orders o on c.CustomerID = o.CustomerID
+inner join Sales.OrderDetails od on o.OrderID = od.OrderID
+group by c.CustomerID, c.FirstName, c.LastName, c.Email
+order by total_gastado desc;
 
--- 2. Top 10 Clientes con mayor volumen de compras (Demuestra agrupación y filtrado)
-SELECT TOP 10
-    c.FirstName + ' ' + c.LastName AS Cliente,
-    c.Email,
-    COUNT(o.OrderID) AS CantidadOrdenes,
-    SUM(od.TotalPrice) AS TotalGastado
-FROM People.Customers c
-INNER JOIN Sales.Orders o ON c.CustomerID = o.CustomerID
-INNER JOIN Sales.OrderDetails od ON o.OrderID = od.OrderID
-GROUP BY c.CustomerID, c.FirstName, c.LastName, c.Email
-ORDER BY TotalGastado DESC;
+select 
+    s.StatusName as estado_orden,
+    count(o.OrderID) as total_ordenes,
+    cast(count(o.OrderID) * 100.0 / (select count(*) from Sales.Orders) as decimal(5,2)) as porcentaje
+from Sales.OrderStatus s
+left join Sales.Orders o on s.StatusID = o.StatusID
+group by s.StatusName
+order by total_ordenes desc;
 
--- 3. Resumen de Órdenes por Estado (Demuestra el catálogo de estatus)
-SELECT 
-    s.StatusName AS EstadoOrden,
-    COUNT(o.OrderID) AS TotalOrdenes,
-    CAST(COUNT(o.OrderID) * 100.0 / (SELECT COUNT(*) FROM Sales.Orders) AS DECIMAL(5,2)) AS Porcentaje
-FROM Sales.OrderStatus s
-LEFT JOIN Sales.Orders o ON s.StatusID = o.StatusID
-GROUP BY s.StatusName
-ORDER BY TotalOrdenes DESC;
+select 
+    co.CountryName as pais,
+    ci.CityName as ciudad,
+    count(distinct c.CustomerID) as clientes_unicos,
+    count(distinct o.OrderID) as total_ordenes_generadas
+from Geo.Countries co
+inner join Geo.Cities ci on co.CountryID = ci.CountryID
+inner join People.Customers c on ci.CityID = c.CityID
+inner join Sales.Orders o on c.CustomerID = o.CustomerID
+group by co.CountryName, ci.CityName
+order by total_ordenes_generadas desc;
 
--- 4. Ventas por País y Ciudad (Demuestra la integridad geográfica)
-SELECT 
-    co.CountryName AS Pais,
-    ci.CityName AS Ciudad,
-    COUNT(DISTINCT c.CustomerID) AS ClientesUnicos,
-    COUNT(DISTINCT o.OrderID) AS TotalOrdenesGeneradas
-FROM Geo.Countries co
-INNER JOIN Geo.Cities ci ON co.CountryID = ci.CountryID
-INNER JOIN People.Customers c ON ci.CityID = c.CityID
-INNER JOIN Sales.Orders o ON c.CustomerID = o.CustomerID
-GROUP BY co.CountryName, ci.CityName
-ORDER BY TotalOrdenesGeneradas DESC;
-
--- 5. Consulta de Auditoría: Productos con bajo Stock (Menor a 10) que tienen demanda reciente
-SELECT 
-    p.ProductID,
-    p.ProductName,
-    c.CategoryName,
-    p.Stock AS StockActual,
-    SUM(od.Quantity) AS CantidadVendidaHistorica
-FROM Catalog.Products p
-INNER JOIN Catalog.Categories c ON p.CategoryID = c.CategoryID
-INNER JOIN Sales.OrderDetails od ON p.ProductID = od.ProductID
-WHERE p.Stock < 10
-GROUP BY p.ProductID, p.ProductName, c.CategoryName, p.Stock
-ORDER BY p.Stock ASC;
+select 
+    p.ProductID as producto_id,
+    p.ProductName as nombre_producto,
+    c.CategoryName as categoria,
+    p.Stock as stock_actual,
+    sum(od.Quantity) as cantidad_vendida_historica
+from Catalog.Products p
+inner join Catalog.Categories c on p.CategoryID = c.CategoryID
+inner join Sales.OrderDetails od on p.ProductID = od.ProductID
+where p.Stock < 10
+group by p.ProductID, p.ProductName, c.CategoryName, p.Stock
+order by p.Stock asc;

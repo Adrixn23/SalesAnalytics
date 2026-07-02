@@ -33,7 +33,7 @@ try
 
     var lookup = new LookupContext();
 
-    // POLIMORFISMO PURO: Una colección de interfaces genéricas
+
     IEtlService[] etlServices = 
     {
         new CountryService(context),
@@ -46,7 +46,7 @@ try
         new OrderDetailService(context)
     };
 
-    // Usando FOR en lugar de FOREACH para iterar, cumpliendo la regla solicitada
+
     for (int i = 0; i < etlServices.Length; i++)
     {
         var service = etlServices[i];
@@ -67,7 +67,7 @@ try
             Console.ForegroundColor = ConsoleColor.Red;
             Console.WriteLine($"[ERROR] {result.Message}");
             Console.ResetColor();
-            break; // Si falla uno, detenemos el pipeline por integridad
+            break;
         }
     }
 

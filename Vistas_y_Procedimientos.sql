@@ -1,52 +1,41 @@
-USE SalesAnalyticsDB;
-GO
+use SalesAnalyticsDB;
+go
 
--- =========================================================================
--- VISTA REQUERIDA (Entregable 2)
--- =========================================================================
--- Esta vista resume las ventas totales por país y categoría, facilitando reportes rápidos
-CREATE OR ALTER VIEW Sales.vw_SalesSummaryByCountryAndCategory AS
-SELECT 
-    co.CountryName AS Pais,
-    c.CategoryName AS Categoria,
-    COUNT(od.ProductID) AS TotalProductosVendidos,
-    SUM(od.TotalPrice) AS IngresosTotales
-FROM Geo.Countries co
-INNER JOIN Geo.Cities ci ON co.CountryID = ci.CountryID
-INNER JOIN People.Customers cu ON ci.CityID = cu.CityID
-INNER JOIN Sales.Orders o ON cu.CustomerID = o.CustomerID
-INNER JOIN Sales.OrderDetails od ON o.OrderID = od.OrderID
-INNER JOIN Catalog.Products p ON od.ProductID = p.ProductID
-INNER JOIN Catalog.Categories c ON p.CategoryID = c.CategoryID
-GROUP BY co.CountryName, c.CategoryName;
-GO
+create or alter view Sales.vw_SalesSummaryByCountryAndCategory as
+select 
+    co.CountryName as pais,
+    c.CategoryName as categoria,
+    count(od.ProductID) as total_productos_vendidos,
+    sum(od.TotalPrice) as ingresos_totales
+from Geo.Countries co
+inner join Geo.Cities ci on co.CountryID = ci.CountryID
+inner join People.Customers cu on ci.CityID = cu.CityID
+inner join Sales.Orders o on cu.CustomerID = o.CustomerID
+inner join Sales.OrderDetails od on o.OrderID = od.OrderID
+inner join Catalog.Products p on od.ProductID = p.ProductID
+inner join Catalog.Categories c on p.CategoryID = c.CategoryID
+group by co.CountryName, c.CategoryName;
+go
 
--- =========================================================================
--- PROCEDIMIENTO ALMACENADO REQUERIDO (Entregable 2)
--- =========================================================================
--- Este procedimiento permite buscar el historial de compras de un cliente por su correo
-CREATE OR ALTER PROCEDURE People.sp_GetCustomerPurchaseHistory
-    @Email VARCHAR(150)
-AS
-BEGIN
-    SET NOCOUNT ON;
+create or alter procedure People.sp_GetCustomerPurchaseHistory
+    @Email varchar(150)
+as
+begin
+    set nocount on;
 
-    SELECT 
-        o.OrderID,
-        o.OrderDate,
-        s.StatusName,
-        p.ProductName,
-        od.Quantity,
-        od.TotalPrice
-    FROM People.Customers c
-    INNER JOIN Sales.Orders o ON c.CustomerID = o.CustomerID
-    INNER JOIN Sales.OrderStatus s ON o.StatusID = s.StatusID
-    INNER JOIN Sales.OrderDetails od ON o.OrderID = od.OrderID
-    INNER JOIN Catalog.Products p ON od.ProductID = p.ProductID
-    WHERE c.Email = @Email
-    ORDER BY o.OrderDate DESC;
-END;
-GO
-
--- Ejemplo de cómo ejecutar el procedimiento (opcional para el maestro):
--- EXEC People.sp_GetCustomerPurchaseHistory @Email = 'kmarshall@chavez-lane.biz';
+    select 
+        o.OrderID as orden_id,
+        o.OrderDate as fecha_orden,
+        s.StatusName as estado,
+        p.ProductName as producto,
+        od.Quantity as cantidad,
+        od.TotalPrice as total
+    from People.Customers c
+    inner join Sales.Orders o on c.CustomerID = o.CustomerID
+    inner join Sales.OrderStatus s on o.StatusID = s.StatusID
+    inner join Sales.OrderDetails od on o.OrderID = od.OrderID
+    inner join Catalog.Products p on od.ProductID = p.ProductID
+    where c.Email = @Email
+    order by o.OrderDate desc;
+end;
+go
