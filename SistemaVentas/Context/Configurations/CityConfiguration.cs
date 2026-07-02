@@ -10,16 +10,17 @@ namespace SistemaVentas.Models.Configurations
     {
         public void Configure(EntityTypeBuilder<City> entity)
         {
+            entity.HasKey(e => e.CityId).HasName("PK__Cities__F2D21A9652BE83E6");
+
             entity.ToTable("Cities", "Geo");
 
             entity.HasIndex(e => e.CountryId, "IX_Cities_CountryID");
 
-            entity.HasIndex(e => new { e.CityName, e.CountryId }, "UQ_Cities_CityName_CountryID").IsUnique();
-
             entity.Property(e => e.CityId).HasColumnName("CityID");
             entity.Property(e => e.CityName)
                 .IsRequired()
-                .HasMaxLength(100);
+                .HasMaxLength(100)
+                .IsUnicode(false);
             entity.Property(e => e.CountryId).HasColumnName("CountryID");
 
             OnConfigurePartial(entity);

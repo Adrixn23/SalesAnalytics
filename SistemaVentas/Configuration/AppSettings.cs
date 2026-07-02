@@ -1,6 +1,6 @@
 namespace SistemaVentas.Configuration;
 
-internal static class AppSettings
+public static class AppSettings
 {
     internal static readonly string ConnectionString =
         @"Data Source=DESKTOP-CROAITG\SQLEXPRESS01;Initial Catalog=SalesAnalyticsDB;Integrated Security=True;Trust Server Certificate=True";

@@ -6,11 +6,11 @@ using SistemaVentas.Result;
 
 namespace SistemaVentas.Services;
 
-internal sealed class CityService : IEtlService
+public sealed class CityService : IEtlService
 {
     private readonly SalesAnalyticsDBContext _context;
 
-    internal CityService(SalesAnalyticsDBContext context) => _context = context;
+    public CityService(SalesAnalyticsDBContext context) => _context = context;
 
     public async Task<OperationResult> LoadAsync(LookupContext lookup)
     {

@@ -2,13 +2,13 @@ using System.Text.RegularExpressions;
 
 namespace SistemaVentas.Helpers;
 
-internal static class CsvParser
+public static class CsvParser
 {
     private static readonly Regex FieldRegex = new(
         @"(?:^|,)(""(?:[^""]|"""")*""|[^,]*)",
         RegexOptions.Compiled);
 
-    internal static string[] ParseLine(string line) =>
+    public static string[] ParseLine(string line) =>
         FieldRegex.Matches(line)
                   .Select(m =>
                   {
@@ -19,7 +19,7 @@ internal static class CsvParser
                   })
                   .ToArray();
 
-    internal static IEnumerable<string[]> ReadFile(string filePath, int expectedColumns) =>
+    public static IEnumerable<string[]> ReadFile(string filePath, int expectedColumns) =>
         File.ReadLines(filePath)
             .Skip(1)
             .Where(static line => !string.IsNullOrWhiteSpace(line))

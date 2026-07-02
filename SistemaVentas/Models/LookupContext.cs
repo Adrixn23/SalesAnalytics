@@ -1,6 +1,6 @@
 namespace SistemaVentas.Models;
 
-internal sealed class LookupContext
+public sealed class LookupContext
 {
     public Dictionary<string, int>        CountryMap  { get; set; } = new(StringComparer.OrdinalIgnoreCase);
     public Dictionary<(string, int), int> CityMap     { get; set; } = new();

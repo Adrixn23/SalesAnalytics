@@ -6,11 +6,11 @@ using SistemaVentas.Result;
 
 namespace SistemaVentas.Services;
 
-public sealed class CountryService : IEtlService
+public sealed class CategoryService : IEtlService
 {
     private readonly SalesAnalyticsDBContext _context;
 
-    public CountryService(SalesAnalyticsDBContext context) => _context = context;
+    public CategoryService(SalesAnalyticsDBContext context) => _context = context;
 
     public async Task<OperationResult> LoadAsync(LookupContext lookup)
     {
@@ -18,37 +18,38 @@ public sealed class CountryService : IEtlService
 
         try
         {
-            var allRows = CsvParser.ReadFile(AppSettings.CustomersFile, 7).ToList();
+            var allRows = CsvParser.ReadFile(AppSettings.ProductsFile, 5).ToList();
 
             var validNames = allRows
-                .Select(static f => f[6].Trim())
+                .Select(static f => f[2].Trim())
                 .Where(static name => !string.IsNullOrWhiteSpace(name))
                 .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
             result.Processed = validNames.Count;
-            result.Rejected  = allRows.Count(static f => string.IsNullOrWhiteSpace(f[6].Trim()));
+            result.Rejected  = allRows.Count(static f => string.IsNullOrWhiteSpace(f[2].Trim()));
 
-            var existingNames = (await _context.Countries
-                .Select(static c => c.CountryName)
+            var existingNames = (await _context.Categories
+                .Select(static c => c.CategoryName)
                 .ToListAsync())
                 .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
             var newEntities = validNames
                 .Where(name => !existingNames.Contains(name))
-                .Select(static name => new Country { CountryName = name })
+                .Select(static name => new Category { CategoryName = name })
                 .ToList();
 
             if (newEntities.Count > 0)
             {
-                _context.Countries.AddRange(newEntities);
+                _context.Categories.AddRange(newEntities);
                 await _context.SaveChangesAsync();
             }
 
-            result.Inserted    = newEntities.Count;
-            lookup.CountryMap  = await _context.Countries
+            result.Inserted = newEntities.Count;
+
+            lookup.CategoryMap = await _context.Categories
                 .ToDictionaryAsync(
-                    static c => c.CountryName,
-                    static c => c.CountryId,
+                    static c => c.CategoryName,
+                    static c => c.CategoryId,
                     StringComparer.OrdinalIgnoreCase);
         }
         catch (Exception ex)

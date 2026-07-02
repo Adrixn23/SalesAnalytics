@@ -1,7 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
-
-
+using SistemaVentas.Models;
 namespace SistemaVentas.Models.Configurations
 {
     public partial class CategoryConfiguration : IEntityTypeConfiguration<Category>
