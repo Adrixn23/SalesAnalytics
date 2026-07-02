@@ -1,6 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using SistemaVentas.Configuration;
-using SistemaVentas.Helpers;
+using SistemaVentas.Interfaces;
 using SistemaVentas.Models;
 using SistemaVentas.Result;
 
@@ -18,7 +18,10 @@ public sealed class OrderDetailService : IEtlService
 
         try
         {
-            var allRows = CsvParser.ReadFile(AppSettings.OrderDetailsFile, 4).ToList();
+            using var reader = new System.IO.StreamReader(AppSettings.OrderDetailsFile);
+            using var csv = new CsvHelper.CsvReader(reader, System.Globalization.CultureInfo.InvariantCulture);
+            var allRows = csv.GetRecords<Models.Csv.OrderDetailRow>().ToList();
+            
             result.Processed = allRows.Count;
 
             var existingKeys = (await _context.OrderDetails
@@ -30,13 +33,13 @@ public sealed class OrderDetailService : IEtlService
             var validEntities = allRows
                 .Select(static f => new 
                 {
-                    ParsedOrder = int.TryParse(f[0], out int oid),
+                    ParsedOrder = int.TryParse(f.OrderId, out int oid),
                     OrderId = oid,
-                    ParsedProduct = int.TryParse(f[1], out int pid),
+                    ParsedProduct = int.TryParse(f.ProductId, out int pid),
                     ProductId = pid,
-                    ParsedQty = int.TryParse(f[2], out int qty),
+                    ParsedQty = int.TryParse(f.Quantity, out int qty),
                     Quantity = qty,
-                    ParsedPrice = decimal.TryParse(f[3], out decimal price),
+                    ParsedPrice = decimal.TryParse(f.TotalPrice, out decimal price),
                     TotalPrice = price
                 })
                 .Where(x => x.ParsedOrder && x.ParsedProduct)
@@ -63,7 +66,7 @@ public sealed class OrderDetailService : IEtlService
         catch (Exception ex)
         {
             result.Success = false;
-            result.Message = ex.Message;
+            result.Message = ex.InnerException != null ? ex.InnerException.Message : ex.Message;
         }
 
         return result;

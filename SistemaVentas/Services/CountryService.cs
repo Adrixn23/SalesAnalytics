@@ -1,6 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using SistemaVentas.Configuration;
-using SistemaVentas.Helpers;
+using SistemaVentas.Interfaces;
 using SistemaVentas.Models;
 using SistemaVentas.Result;
 
@@ -18,15 +18,17 @@ public sealed class CountryService : IEtlService
 
         try
         {
-            var allRows = CsvParser.ReadFile(AppSettings.CustomersFile, 7).ToList();
+            using var reader = new System.IO.StreamReader(AppSettings.CustomersFile);
+            using var csv = new CsvHelper.CsvReader(reader, System.Globalization.CultureInfo.InvariantCulture);
+            var allRows = csv.GetRecords<Models.Csv.CustomerRow>().ToList();
 
             var validNames = allRows
-                .Select(static f => f[6].Trim())
+                .Select(static f => f.Country?.Trim())
                 .Where(static name => !string.IsNullOrWhiteSpace(name))
                 .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
             result.Processed = validNames.Count;
-            result.Rejected  = allRows.Count(static f => string.IsNullOrWhiteSpace(f[6].Trim()));
+            result.Rejected  = allRows.Count(static f => string.IsNullOrWhiteSpace(f.Country?.Trim()));
 
             var existingNames = (await _context.Countries
                 .Select(static c => c.CountryName)
@@ -44,8 +46,9 @@ public sealed class CountryService : IEtlService
                 await _context.SaveChangesAsync();
             }
 
-            result.Inserted    = newEntities.Count;
-            lookup.CountryMap  = await _context.Countries
+            result.Inserted = newEntities.Count;
+
+            lookup.CountryMap = await _context.Countries
                 .ToDictionaryAsync(
                     static c => c.CountryName,
                     static c => c.CountryId,
@@ -54,7 +57,7 @@ public sealed class CountryService : IEtlService
         catch (Exception ex)
         {
             result.Success = false;
-            result.Message = ex.Message;
+            result.Message = ex.InnerException != null ? ex.InnerException.Message : ex.Message;
         }
 
         return result;

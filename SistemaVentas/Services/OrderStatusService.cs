@@ -1,3 +1,4 @@
+using SistemaVentas.Interfaces;
 using Microsoft.EntityFrameworkCore;
 using SistemaVentas.Models;
 using SistemaVentas.Result;
@@ -57,3 +58,4 @@ public sealed class OrderStatusService : IEtlService
         return result;
     }
 }
+

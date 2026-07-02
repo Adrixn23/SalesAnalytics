@@ -16,7 +16,9 @@ namespace SistemaVentas.Models.Configurations
 
             entity.HasIndex(e => e.StatusId, "IX_Orders_StatusID");
 
-            entity.Property(e => e.OrderId).HasColumnName("OrderID");
+            entity.Property(e => e.OrderId)
+                  .HasColumnName("OrderID")
+                  .ValueGeneratedNever();
             entity.Property(e => e.CustomerId).HasColumnName("CustomerID");
             entity.Property(e => e.StatusId).HasColumnName("StatusID");
 

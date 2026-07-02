@@ -1,6 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using SistemaVentas.Configuration;
-using SistemaVentas.Helpers;
+using SistemaVentas.Interfaces;
 using SistemaVentas.Models;
 using SistemaVentas.Result;
 
@@ -18,7 +18,10 @@ public sealed class OrderService : IEtlService
 
         try
         {
-            var allRows = CsvParser.ReadFile(AppSettings.OrdersFile, 4).ToList();
+            using var reader = new System.IO.StreamReader(AppSettings.OrdersFile);
+            using var csv = new CsvHelper.CsvReader(reader, System.Globalization.CultureInfo.InvariantCulture);
+            var allRows = csv.GetRecords<Models.Csv.OrderRow>().ToList();
+            
             result.Processed = allRows.Count;
 
             var existingIds = await _context.Orders
@@ -28,17 +31,17 @@ public sealed class OrderService : IEtlService
             var validEntities = allRows
                 .Select(static f => new 
                 {
-                    ParsedId = int.TryParse(f[0], out int id),
+                    ParsedId = int.TryParse(f.OrderId, out int id),
                     Id = id,
-                    ParsedCustomer = int.TryParse(f[1], out int cid),
+                    ParsedCustomer = int.TryParse(f.CustomerId, out int cid),
                     CustomerId = cid,
-                    ParsedDate = DateOnly.TryParse(f[2], out DateOnly d),
+                    ParsedDate = DateOnly.TryParse(f.OrderDate, out DateOnly d),
                     Date = d,
-                    StatusName = f[3].Trim()
+                    StatusName = f.Status?.Trim()
                 })
                 .Where(x => x.ParsedId && !existingIds.Contains(x.Id))
                 .Where(x => x.ParsedCustomer && lookup.CustomerIds.Contains(x.CustomerId))
-                .Where(x => lookup.StatusMap.ContainsKey(x.StatusName))
+                .Where(x => x.StatusName != null && lookup.StatusMap.ContainsKey(x.StatusName))
                 .Select(x => new Order
                 {
                     OrderId = x.Id,
@@ -50,8 +53,18 @@ public sealed class OrderService : IEtlService
 
             if (validEntities.Count > 0)
             {
-                _context.Orders.AddRange(validEntities);
-                await _context.SaveChangesAsync();
+                await _context.Database.OpenConnectionAsync();
+                try
+                {
+                    await _context.Database.ExecuteSqlRawAsync("SET IDENTITY_INSERT Sales.Orders ON");
+                    _context.Orders.AddRange(validEntities);
+                    await _context.SaveChangesAsync();
+                    await _context.Database.ExecuteSqlRawAsync("SET IDENTITY_INSERT Sales.Orders OFF");
+                }
+                finally
+                {
+                    await _context.Database.CloseConnectionAsync();
+                }
             }
 
             result.Inserted = validEntities.Count;
@@ -64,7 +77,7 @@ public sealed class OrderService : IEtlService
         catch (Exception ex)
         {
             result.Success = false;
-            result.Message = ex.Message;
+            result.Message = ex.InnerException != null ? ex.InnerException.Message : ex.Message;
         }
 
         return result;

@@ -1,6 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using SistemaVentas.Configuration;
-using SistemaVentas.Helpers;
+using SistemaVentas.Interfaces;
 using SistemaVentas.Models;
 using SistemaVentas.Result;
 
@@ -18,15 +18,17 @@ public sealed class CategoryService : IEtlService
 
         try
         {
-            var allRows = CsvParser.ReadFile(AppSettings.ProductsFile, 5).ToList();
+            using var reader = new System.IO.StreamReader(AppSettings.ProductsFile);
+            using var csv = new CsvHelper.CsvReader(reader, System.Globalization.CultureInfo.InvariantCulture);
+            var allRows = csv.GetRecords<Models.Csv.ProductRow>().ToList();
 
             var validNames = allRows
-                .Select(static f => f[2].Trim())
+                .Select(static f => f.Category?.Trim())
                 .Where(static name => !string.IsNullOrWhiteSpace(name))
                 .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
             result.Processed = validNames.Count;
-            result.Rejected  = allRows.Count(static f => string.IsNullOrWhiteSpace(f[2].Trim()));
+            result.Rejected  = allRows.Count(static f => string.IsNullOrWhiteSpace(f.Category?.Trim()));
 
             var existingNames = (await _context.Categories
                 .Select(static c => c.CategoryName)
@@ -55,7 +57,7 @@ public sealed class CategoryService : IEtlService
         catch (Exception ex)
         {
             result.Success = false;
-            result.Message = ex.Message;
+            result.Message = ex.InnerException != null ? ex.InnerException.Message : ex.Message;
         }
 
         return result;

@@ -1,7 +1,8 @@
 using SistemaVentas.Models;
 using SistemaVentas.Result;
+using System.Threading.Tasks;
 
-namespace SistemaVentas.Services;
+namespace SistemaVentas.Interfaces;
 
 public interface IEtlService
 {

@@ -16,7 +16,9 @@ namespace SistemaVentas.Models.Configurations
 
             entity.HasIndex(e => e.CityId, "IX_Customers_CityID");
 
-            entity.Property(e => e.CustomerId).HasColumnName("CustomerID");
+            entity.Property(e => e.CustomerId)
+                  .HasColumnName("CustomerID")
+                  .ValueGeneratedNever();
             entity.Property(e => e.CityId).HasColumnName("CityID");
             entity.Property(e => e.Email)
                 .HasMaxLength(150)

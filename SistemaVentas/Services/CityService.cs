@@ -1,6 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using SistemaVentas.Configuration;
-using SistemaVentas.Helpers;
+using SistemaVentas.Interfaces;
 using SistemaVentas.Models;
 using SistemaVentas.Result;
 
@@ -14,19 +14,24 @@ public sealed class CityService : IEtlService
 
     public async Task<OperationResult> LoadAsync(LookupContext lookup)
     {
-        var result     = new OperationResult();
-        var countryMap = lookup.CountryMap;
+        var result = new OperationResult();
 
         try
         {
-            var uniquePairs = CsvParser.ReadFile(AppSettings.CustomersFile, 7)
-                .Select(static f => (City: f[5].Trim(), Country: f[6].Trim()))
-                .Where(static x => !string.IsNullOrWhiteSpace(x.City) && !string.IsNullOrWhiteSpace(x.Country))
-                .DistinctBy(static x => (x.City.ToUpperInvariant(), x.Country.ToUpperInvariant()))
-                .ToList();
+            using var reader = new System.IO.StreamReader(AppSettings.CustomersFile);
+            using var csv = new CsvHelper.CsvReader(reader, System.Globalization.CultureInfo.InvariantCulture);
+            var allRows = csv.GetRecords<Models.Csv.CustomerRow>().ToList();
 
-            result.Processed = uniquePairs.Count;
-            result.Rejected  = uniquePairs.Count(x => !countryMap.ContainsKey(x.Country));
+            var validPairs = allRows
+                .Select(static f => new 
+                { 
+                    CityName = f.City?.Trim(), 
+                    CountryName = f.Country?.Trim() 
+                })
+                .Where(static x => !string.IsNullOrWhiteSpace(x.CityName) && !string.IsNullOrWhiteSpace(x.CountryName))
+                .ToHashSet();
+
+            result.Processed = validPairs.Count;
 
             var existingKeys = (await _context.Cities
                 .Select(static c => new { c.CityName, c.CountryId })
@@ -34,11 +39,14 @@ public sealed class CityService : IEtlService
                 .Select(static c => (c.CityName, c.CountryId))
                 .ToHashSet();
 
-            var newEntities = uniquePairs
-                .Where(x => countryMap.ContainsKey(x.Country))
-                .Select(x => (City: x.City, CountryId: countryMap[x.Country]))
-                .Where(x => !existingKeys.Contains((x.City, x.CountryId)))
-                .Select(static x => new City { CityName = x.City, CountryId = x.CountryId })
+            var newEntities = validPairs
+                .Where(x => lookup.CountryMap.ContainsKey(x.CountryName))
+                .Select(x => new City 
+                { 
+                    CityName = x.CityName,
+                    CountryId = lookup.CountryMap[x.CountryName]
+                })
+                .Where(c => !existingKeys.Contains((c.CityName, c.CountryId)))
                 .ToList();
 
             if (newEntities.Count > 0)
@@ -48,18 +56,22 @@ public sealed class CityService : IEtlService
             }
 
             result.Inserted = newEntities.Count;
+            result.Rejected = validPairs.Count - newEntities.Count - existingKeys.Count;
 
-            lookup.CityMap = (await _context.Cities
+            var allCities = await _context.Cities
                 .Select(static c => new { c.CityName, c.CountryId, c.CityId })
-                .ToListAsync())
+                .ToListAsync();
+
+            lookup.CityMap = allCities
                 .ToDictionary(
                     static c => (c.CityName, c.CountryId),
-                    static c => c.CityId);
+                    static c => c.CityId
+                );
         }
         catch (Exception ex)
         {
             result.Success = false;
-            result.Message = ex.Message;
+            result.Message = ex.InnerException != null ? ex.InnerException.Message : ex.Message;
         }
 
         return result;

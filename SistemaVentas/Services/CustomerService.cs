@@ -1,6 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using SistemaVentas.Configuration;
-using SistemaVentas.Helpers;
+using SistemaVentas.Interfaces;
 using SistemaVentas.Models;
 using SistemaVentas.Result;
 
@@ -18,7 +18,10 @@ public sealed class CustomerService : IEtlService
 
         try
         {
-            var allRows = CsvParser.ReadFile(AppSettings.CustomersFile, 7).ToList();
+            using var reader = new System.IO.StreamReader(AppSettings.CustomersFile);
+            using var csv = new CsvHelper.CsvReader(reader, System.Globalization.CultureInfo.InvariantCulture);
+            var allRows = csv.GetRecords<Models.Csv.CustomerRow>().ToList();
+            
             result.Processed = allRows.Count;
 
             var existingIds = await _context.Customers
@@ -28,17 +31,17 @@ public sealed class CustomerService : IEtlService
             var validEntities = allRows
                 .Select(static f => new 
                 {
-                    Parsed = int.TryParse(f[0], out int id),
+                    Parsed = int.TryParse(f.CustomerId, out int id),
                     Id = id,
-                    FirstName = f[1].Trim(),
-                    LastName = f[2].Trim(),
-                    Email = f[3].Trim(),
-                    Phone = f[4].Trim(),
-                    City = f[5].Trim(),
-                    Country = f[6].Trim()
+                    FirstName = f.FirstName?.Trim(),
+                    LastName = f.LastName?.Trim(),
+                    Email = f.Email?.Trim(),
+                    Phone = f.Phone?.Trim(),
+                    City = f.City?.Trim(),
+                    Country = f.Country?.Trim()
                 })
                 .Where(x => x.Parsed && !existingIds.Contains(x.Id))
-                .Where(x => lookup.CountryMap.ContainsKey(x.Country))
+                .Where(x => x.Country != null && lookup.CountryMap.ContainsKey(x.Country))
                 .Select(x => new
                 {
                     x.Id,
@@ -49,7 +52,7 @@ public sealed class CustomerService : IEtlService
                     x.City,
                     CountryId = lookup.CountryMap[x.Country]
                 })
-                .Where(x => lookup.CityMap.ContainsKey((x.City, x.CountryId)))
+                .Where(x => x.City != null && lookup.CityMap.ContainsKey((x.City, x.CountryId)))
                 .Select(x => new Customer
                 {
                     CustomerId = x.Id,
@@ -63,8 +66,18 @@ public sealed class CustomerService : IEtlService
 
             if (validEntities.Count > 0)
             {
-                _context.Customers.AddRange(validEntities);
-                await _context.SaveChangesAsync();
+                await _context.Database.OpenConnectionAsync();
+                try
+                {
+                    await _context.Database.ExecuteSqlRawAsync("SET IDENTITY_INSERT People.Customers ON");
+                    _context.Customers.AddRange(validEntities);
+                    await _context.SaveChangesAsync();
+                    await _context.Database.ExecuteSqlRawAsync("SET IDENTITY_INSERT People.Customers OFF");
+                }
+                finally
+                {
+                    await _context.Database.CloseConnectionAsync();
+                }
             }
 
             result.Inserted = validEntities.Count;
@@ -77,7 +90,7 @@ public sealed class CustomerService : IEtlService
         catch (Exception ex)
         {
             result.Success = false;
-            result.Message = ex.Message;
+            result.Message = ex.InnerException != null ? ex.InnerException.Message : ex.Message;
         }
 
         return result;

@@ -1,8 +1,12 @@
+using CsvHelper.Configuration.Attributes;
+
 namespace SistemaVentas.Models.Csv;
 
-internal sealed record ProductRow(
-    int     ProductId,
-    string  ProductName,
-    string  Category,
-    decimal Price,
-    int     Stock);
+public class ProductRow
+{
+    [Name("ProductID")]   public string ProductId { get; set; }
+    [Name("ProductName")] public string ProductName { get; set; }
+    [Name("Category")]    public string Category { get; set; }
+    [Name("Price")]       public string Price { get; set; }
+    [Name("Stock")]       public string Stock { get; set; }
+}

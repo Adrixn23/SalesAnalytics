@@ -14,7 +14,9 @@ namespace SistemaVentas.Models.Configurations
 
             entity.ToTable("Products", "Catalog");
 
-            entity.Property(e => e.ProductId).HasColumnName("ProductID");
+            entity.Property(e => e.ProductId)
+                  .HasColumnName("ProductID")
+                  .ValueGeneratedNever();
             entity.Property(e => e.CategoryId).HasColumnName("CategoryID");
             entity.Property(e => e.Price).HasColumnType("decimal(10, 2)");
             entity.Property(e => e.ProductName)
