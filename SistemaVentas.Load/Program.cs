@@ -1,15 +1,24 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using SistemaVentas.Configuration;
 using SistemaVentas.Models;
 using SistemaVentas.Interfaces;
 using SistemaVentas.Services;
-
 Console.ForegroundColor = ConsoleColor.Cyan;
 Console.WriteLine("╔════════════════════════════════════════════════════╗");
 Console.WriteLine("║     Sistema de Análisis de Ventas - Proceso ETL    ║");
 Console.WriteLine("╚════════════════════════════════════════════════════╝");
 Console.ResetColor();
 Console.WriteLine($"  Inicio: {DateTime.Now:yyyy-MM-dd HH:mm:ss}\n");
+
+
+var config = new ConfigurationBuilder()
+    .SetBasePath(AppDomain.CurrentDomain.BaseDirectory)
+    .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
+    .Build();
+
+AppSettings.ConnectionString = config.GetConnectionString("DefaultConnection")!;
+AppSettings.CsvDirectory = config.GetSection("EtlSettings")["CsvDirectory"]!;
 
 var optionsBuilder = new DbContextOptionsBuilder<SalesAnalyticsDBContext>();
 optionsBuilder.UseSqlServer(AppSettings.ConnectionString);
