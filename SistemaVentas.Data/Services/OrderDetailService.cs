@@ -52,6 +52,8 @@ public sealed class OrderDetailService : IEtlService
                     Quantity = x.ParsedQty ? x.Quantity : 1,
                     TotalPrice = x.ParsedPrice ? x.TotalPrice : 0m
                 })
+                .GroupBy(x => new { x.OrderId, x.ProductId })
+                .Select(g => g.First())
                 .ToList();
 
             if (validEntities.Count > 0)
