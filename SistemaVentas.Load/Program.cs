@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using SistemaVentas.Configuration;
@@ -9,6 +10,8 @@ Console.WriteLine("╔═══════════════════�
 Console.WriteLine("║     Sistema de Análisis de Ventas - Proceso ETL    ║");
 Console.WriteLine("╚════════════════════════════════════════════════════╝");
 Console.ResetColor();
+
+var stopwatch = Stopwatch.StartNew();
 Console.WriteLine($"  Inicio: {DateTime.Now:yyyy-MM-dd HH:mm:ss}\n");
 
 
@@ -80,7 +83,11 @@ try
         }
     }
 
+    stopwatch.Stop();
     Console.WriteLine($"\n  Fin del proceso: {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
+    Console.ForegroundColor = ConsoleColor.Green;
+    Console.WriteLine($"  Tiempo total de ejecución: {stopwatch.Elapsed.TotalSeconds:F2} segundos");
+    Console.ResetColor();
 }
 catch (Exception ex)
 {
