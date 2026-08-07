@@ -10,7 +10,7 @@ namespace SistemaVentas.Result
         public bool Success { get; set; }
         public string? Message { get; set; }
 
-        // Mantenemos estas propiedades para los contadores de las tablas
+
         public int Processed { get; set; }
         public int Inserted { get; set; }
         public int Rejected { get; set; }

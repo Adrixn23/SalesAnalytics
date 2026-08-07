@@ -1,97 +1,57 @@
-using System.Diagnostics;
+using System;
+using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using SistemaVentas.Configuration;
-using SistemaVentas.Models;
+using SistemaVentas.Extraction;
 using SistemaVentas.Interfaces;
+using SistemaVentas.Models;
+using SistemaVentas.Models.Csv;
 using SistemaVentas.Services;
-Console.ForegroundColor = ConsoleColor.Cyan;
-Console.WriteLine("╔════════════════════════════════════════════════════╗");
-Console.WriteLine("║     Sistema de Análisis de Ventas - Proceso ETL    ║");
-Console.WriteLine("╚════════════════════════════════════════════════════╝");
-Console.ResetColor();
 
-var stopwatch = Stopwatch.StartNew();
-Console.WriteLine($"  Inicio: {DateTime.Now:yyyy-MM-dd HH:mm:ss}\n");
+namespace SistemaVentas.Load;
 
-
-var config = new ConfigurationBuilder()
-    .SetBasePath(AppDomain.CurrentDomain.BaseDirectory)
-    .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
-    .Build();
-
-AppSettings.ConnectionString = config.GetConnectionString("DefaultConnection")!;
-AppSettings.CsvDirectory = config.GetSection("EtlSettings")["CsvDirectory"]!;
-
-var optionsBuilder = new DbContextOptionsBuilder<SalesAnalyticsDBContext>();
-optionsBuilder.UseSqlServer(AppSettings.ConnectionString);
-using var context = new SalesAnalyticsDBContext(optionsBuilder.Options);
-
-try
+public class Program
 {
-    if (await context.Database.CanConnectAsync())
+    public static async Task Main(string[] args)
     {
-        Console.ForegroundColor = ConsoleColor.Green;
-        Console.WriteLine("  ✓ Conexión establecida con la base de datos.");
-        Console.ResetColor();
-    }
-    else
-    {
-        Console.ForegroundColor = ConsoleColor.Red;
-        Console.WriteLine("  ✗ No se pudo conectar a la base de datos.");
-        Console.ResetColor();
-        return;
-    }
+        var builder = Host.CreateApplicationBuilder(args);
 
-    var lookup = new LookupContext();
+        var connectionString = builder.Configuration.GetConnectionString("DefaultConnection") 
+                               ?? throw new InvalidOperationException("DefaultConnection connection string not found.");
+        AppSettings.ConnectionString = connectionString;
+        AppSettings.CsvDirectory = builder.Configuration.GetSection("EtlSettings")["CsvDirectory"] 
+                                   ?? throw new InvalidOperationException("CSV directory not found.");
 
-
-    IEtlService[] etlServices = 
-    {
-        new CountryService(context),
-        new CityService(context),
-        new CategoryService(context),
-        new ProductService(context),
-        new OrderStatusService(context),
-        new CustomerService(context),
-        new OrderService(context),
-        new OrderDetailService(context)
-    };
-
-
-    for (int i = 0; i < etlServices.Length; i++)
-    {
-        var service = etlServices[i];
-        var serviceName = service.GetType().Name.Replace("Service", "");
-        
-        Console.Write($"  → Cargando {serviceName,-15} ");
-        
-        var result = await service.LoadAsync(lookup);
-        
-        if (result.Success)
+        builder.Services.AddHttpClient("VentasApiExterna", client =>
         {
-            Console.ForegroundColor = ConsoleColor.Green;
-            Console.WriteLine($"[OK]  Procesados: {result.Processed,6} | Insertados: {result.Inserted,6} | Rechazados: {result.Rejected,6}");
-            Console.ResetColor();
-        }
-        else
-        {
-            Console.ForegroundColor = ConsoleColor.Red;
-            Console.WriteLine($"[ERROR] {result.Message}");
-            Console.ResetColor();
-            break;
-        }
-    }
+            client.BaseAddress = new Uri(builder.Configuration["ExternalApi:BaseUrl"] ?? "https://localhost:7050/");
+        });
 
-    stopwatch.Stop();
-    Console.WriteLine($"\n  Fin del proceso: {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
-    Console.ForegroundColor = ConsoleColor.Green;
-    Console.WriteLine($"  Tiempo total de ejecución: {stopwatch.Elapsed.TotalSeconds:F2} segundos");
-    Console.ResetColor();
-}
-catch (Exception ex)
-{
-    Console.ForegroundColor = ConsoleColor.Red;
-    Console.WriteLine($"\n  Error fatal: {ex.Message}");
-    Console.ResetColor();
+        builder.Services.AddDbContext<SalesAnalyticsDBContext>(options =>
+            options.UseSqlServer(connectionString));
+
+        builder.Services.AddTransient<IExtractor<CustomerRow>, CsvExtractor<CustomerRow>>();
+        builder.Services.AddTransient<IExtractor<ProductRow>, CsvExtractor<ProductRow>>();
+        builder.Services.AddTransient<IExtractor<OrderRow>, CsvExtractor<OrderRow>>();
+        builder.Services.AddTransient<IExtractor<OrderDetailRow>, CsvExtractor<OrderDetailRow>>();
+        builder.Services.AddTransient<IExtractor<ReviewDto>, DatabaseExtractor>();
+        builder.Services.AddTransient<IExtractor<CommentDto>, ApiExtractor>();
+
+        builder.Services.AddScoped<IEtlService, CountryService>();
+        builder.Services.AddScoped<IEtlService, CityService>();
+        builder.Services.AddScoped<IEtlService, CategoryService>();
+        builder.Services.AddScoped<IEtlService, ProductService>();
+        builder.Services.AddScoped<IEtlService, OrderStatusService>();
+        builder.Services.AddScoped<IEtlService, CustomerService>();
+        builder.Services.AddScoped<IEtlService, OrderService>();
+        builder.Services.AddScoped<IEtlService, OrderDetailService>();
+
+        builder.Services.AddHostedService<EtlWorker>();
+
+        var host = builder.Build();
+        await host.RunAsync();
+    }
 }

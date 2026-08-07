@@ -3,10 +3,10 @@ using System.IO;
 using System.Linq;
 
 class Test {
-    static void Main() {
-        var orders = File.ReadAllLines("C:\\Adrian\\ITLA_Materias ETC\\FrancisElec1\\Archivo CSV Análisis de Ventas-20260603\\orders.csv").Skip(1).Select(x => x.Split(',')[0]).ToHashSet();
-        var products = File.ReadAllLines("C:\\Adrian\\ITLA_Materias ETC\\FrancisElec1\\Archivo CSV Análisis de Ventas-20260603\\products.csv").Skip(1).Select(x => x.Split(',')[0]).ToHashSet();
-        var details = File.ReadAllLines("C:\\Adrian\\ITLA_Materias ETC\\FrancisElec1\\Archivo CSV Análisis de Ventas-20260603\\order_details.csv").Skip(1).Select(x => x.Split(',')).ToList();
+    static void MainTest() {
+        var orders = File.ReadAllLines("C:\\Adrian\\ITLA_Materias ETC\\FrancisElec1\\Archivo CSV Anï¿½lisis de Ventas-20260603\\orders.csv").Skip(1).Select(x => x.Split(',')[0]).ToHashSet();
+        var products = File.ReadAllLines("C:\\Adrian\\ITLA_Materias ETC\\FrancisElec1\\Archivo CSV Anï¿½lisis de Ventas-20260603\\products.csv").Skip(1).Select(x => x.Split(',')[0]).ToHashSet();
+        var details = File.ReadAllLines("C:\\Adrian\\ITLA_Materias ETC\\FrancisElec1\\Archivo CSV Anï¿½lisis de Ventas-20260603\\order_details.csv").Skip(1).Select(x => x.Split(',')).ToList();
         
         int invalidFk = 0;
         foreach (var d in details) {
