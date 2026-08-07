@@ -9,9 +9,7 @@ using CsvHelper.Configuration;
 using Microsoft.Extensions.Configuration;
 using SistemaVentas.Interfaces;
 using SistemaVentas.Models.Csv;
-
 namespace SistemaVentas.Extraction;
-
 public class CsvExtractor<T> : IExtractor<T>
 {
     private readonly string _csvDirectory;
@@ -21,7 +19,6 @@ public class CsvExtractor<T> : IExtractor<T>
         _csvDirectory = configuration.GetSection("EtlSettings")["CsvDirectory"] 
                         ?? throw new InvalidOperationException("CSV directory not configured.");
     }
-
     private string GetPathForType()
     {
         var type = typeof(T);
@@ -31,7 +28,6 @@ public class CsvExtractor<T> : IExtractor<T>
         if (type == typeof(OrderDetailRow)) return Path.Combine(_csvDirectory, "order_details.csv");
         throw new InvalidOperationException($"Type not supported: {type.Name}");
     }
-
     public async Task<IEnumerable<T>> ExtractAsync(CancellationToken cancellationToken)
     {
         var filePath = GetPathForType();
@@ -41,7 +37,7 @@ public class CsvExtractor<T> : IExtractor<T>
             MissingFieldFound = null,
             HeaderValidated = null
         };
-
+     
         using var reader = new StreamReader(filePath);
         using var csv = new CsvReader(reader, config);
         var records = new List<T>();
