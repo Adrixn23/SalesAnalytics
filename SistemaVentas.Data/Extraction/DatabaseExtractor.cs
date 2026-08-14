@@ -1,8 +1,6 @@
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
-using System.IO;
-using System.Text.Json;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Data.SqlClient;
@@ -21,46 +19,48 @@ public class DatabaseExtractor : IExtractor<ReviewDto>
     public DatabaseExtractor(IConfiguration config, ILogger<DatabaseExtractor> logger)
     {
         _connectionString = config.GetConnectionString("VentasHistoricoExternoDB")
-            ?? "Server=localhost\\SQLEXPRESS;Database=VentasHistoricoExternoDB;Integrated Security=True;TrustServerCertificate=True;";
-        _logger = logger;
+            ?? throw new InvalidOperationException("La cadena de conexión 'VentasHistoricoExternoDB' no está configurada en appsettings.json.");
+        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
 
     public async Task<IEnumerable<ReviewDto>> ExtractAsync(CancellationToken cancellationToken)
     {
-        var sw = Stopwatch.StartNew();
         var results = new List<ReviewDto>();
+        var seenIds = new HashSet<int>();
 
-        using var conn = new SqlConnection(_connectionString);
-        await conn.OpenAsync(cancellationToken);
-
-        using var cmd = new SqlCommand("SELECT ReviewID, CustomerEmail, ProductName, Rating, CommentText, ReviewDate FROM dbo.Reviews", conn);
-        using var reader = await cmd.ExecuteReaderAsync(cancellationToken);
-
-        while (await reader.ReadAsync(cancellationToken))
+        try
         {
-            results.Add(new ReviewDto
+            using var conn = new SqlConnection(_connectionString);
+            await conn.OpenAsync(cancellationToken);
+
+            using var cmd = new SqlCommand("SELECT ReviewID, CustomerEmail, ProductName, Rating, CommentText, ReviewDate FROM dbo.Reviews", conn);
+            using var reader = await cmd.ExecuteReaderAsync(cancellationToken);
+
+            while (await reader.ReadAsync(cancellationToken))
             {
-                ReviewId = reader.GetInt32(0),
-                CustomerEmail = reader.GetString(1),
-                ProductName = reader.GetString(2),
-                Rating = reader.GetInt32(3),
-                CommentText = reader.GetString(4),
-                ReviewDate = reader.GetDateTime(5)
-            });
-        }
+                var reviewId = reader.GetInt32(0);
+                if (!seenIds.Add(reviewId))
+                {
+                    continue;
+                }
 
-        var stagingDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "staging");
-        if (!Directory.Exists(stagingDir))
+                results.Add(new ReviewDto
+                {
+                    ReviewId = reviewId,
+                    CustomerEmail = reader.GetString(1),
+                    ProductName = reader.GetString(2),
+                    Rating = reader.GetInt32(3),
+                    CommentText = reader.GetString(4),
+                    ReviewDate = reader.GetDateTime(5)
+                });
+            }
+
+            return results;
+        }
+        catch (Exception ex)
         {
-            Directory.CreateDirectory(stagingDir);
+            _logger.LogError(ex, "Error al extraer datos desde la Base de Datos.");
+            return Enumerable.Empty<ReviewDto>();
         }
-
-        var outputPath = Path.Combine(stagingDir, "reviews.json");
-        var json = JsonSerializer.Serialize(results, new JsonSerializerOptions { WriteIndented = true });
-        await File.WriteAllTextAsync(outputPath, json, cancellationToken);
-
-        sw.Stop();
-        _logger.LogInformation("DatabaseExtractor: {Count} reseñas extraidas en {Ms} ms", results.Count, sw.ElapsedMilliseconds);
-        return results;
     }
 }

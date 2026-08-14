@@ -33,10 +33,14 @@ public class Program
         builder.Services.AddDbContext<SalesAnalyticsDBContext>(options =>
             options.UseSqlServer(connectionString));
 
-        builder.Services.AddTransient<IExtractor<CustomerRow>, CsvExtractor<CustomerRow>>();
-        builder.Services.AddTransient<IExtractor<ProductRow>, CsvExtractor<ProductRow>>();
-        builder.Services.AddTransient<IExtractor<OrderRow>, CsvExtractor<OrderRow>>();
-        builder.Services.AddTransient<IExtractor<OrderDetailRow>, CsvExtractor<OrderDetailRow>>();
+        builder.Services.AddTransient<IExtractor<CustomerRow>>(sp =>
+            new CsvExtractor<CustomerRow>(System.IO.Path.Combine(AppSettings.CsvDirectory, "customers.csv"), sp.GetRequiredService<Microsoft.Extensions.Logging.ILogger<CsvExtractor<CustomerRow>>>()));
+        builder.Services.AddTransient<IExtractor<ProductRow>>(sp =>
+            new CsvExtractor<ProductRow>(System.IO.Path.Combine(AppSettings.CsvDirectory, "products.csv"), sp.GetRequiredService<Microsoft.Extensions.Logging.ILogger<CsvExtractor<ProductRow>>>()));
+        builder.Services.AddTransient<IExtractor<OrderRow>>(sp =>
+            new CsvExtractor<OrderRow>(System.IO.Path.Combine(AppSettings.CsvDirectory, "orders.csv"), sp.GetRequiredService<Microsoft.Extensions.Logging.ILogger<CsvExtractor<OrderRow>>>()));
+        builder.Services.AddTransient<IExtractor<OrderDetailRow>>(sp =>
+            new CsvExtractor<OrderDetailRow>(System.IO.Path.Combine(AppSettings.CsvDirectory, "order_details.csv"), sp.GetRequiredService<Microsoft.Extensions.Logging.ILogger<CsvExtractor<OrderDetailRow>>>()));
         builder.Services.AddTransient<IExtractor<ReviewDto>, DatabaseExtractor>();
         builder.Services.AddTransient<IExtractor<CommentDto>, ApiExtractor>();
 

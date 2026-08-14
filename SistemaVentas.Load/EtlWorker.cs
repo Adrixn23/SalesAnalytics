@@ -54,123 +54,17 @@ public class EtlWorker : BackgroundService
         {
             var sw = Stopwatch.StartNew();
 
-            IEnumerable<CustomerRow> customers = Array.Empty<CustomerRow>();
-            IEnumerable<ProductRow> products = Array.Empty<ProductRow>();
-            IEnumerable<OrderRow> orders = Array.Empty<OrderRow>();
-            IEnumerable<OrderDetailRow> orderDetails = Array.Empty<OrderDetailRow>();
-            IEnumerable<ReviewDto> reviews = Array.Empty<ReviewDto>();
-            IEnumerable<CommentDto> comments = Array.Empty<CommentDto>();
+            var customers = await _customerExtractor.ExtractAsync(stoppingToken);
+            var products = await _productExtractor.ExtractAsync(stoppingToken);
+            var orders = await _orderExtractor.ExtractAsync(stoppingToken);
+            var orderDetails = await _orderDetailExtractor.ExtractAsync(stoppingToken);
+            var reviews = await _dbExtractor.ExtractAsync(stoppingToken);
+            var comments = await _apiExtractor.ExtractAsync(stoppingToken);
 
-            var tasks = new List<Task>
-            {
-                Task.Run(async () =>
-                {
-                    try
-                    {
-                        customers = await _customerExtractor.ExtractAsync(stoppingToken);
-                    }
-                    catch (Exception ex)
-                    {
-                        _logger.LogError(ex, "Error extrayendo clientes desde CSV.");
-                    }
-                }, stoppingToken),
-
-                Task.Run(async () =>
-                {
-                    try
-                    {
-                        products = await _productExtractor.ExtractAsync(stoppingToken);
-                    }
-                    catch (Exception ex)
-                    {
-                        _logger.LogError(ex, "Error extrayendo productos desde CSV.");
-                    }
-                }, stoppingToken),
-
-                Task.Run(async () =>
-                {
-                    try
-                    {
-                        orders = await _orderExtractor.ExtractAsync(stoppingToken);
-                    }
-                    catch (Exception ex)
-                    {
-                        _logger.LogError(ex, "Error extrayendo órdenes desde CSV.");
-                    }
-                }, stoppingToken),
-
-                Task.Run(async () =>
-                {
-                    try
-                    {
-                        orderDetails = await _orderDetailExtractor.ExtractAsync(stoppingToken);
-                    }
-                    catch (Exception ex)
-                    {
-                        _logger.LogError(ex, "Error extrayendo detalles de órdenes desde CSV.");
-                    }
-                }, stoppingToken),
-
-                Task.Run(async () =>
-                {
-                    try
-                    {
-                        reviews = await _dbExtractor.ExtractAsync(stoppingToken);
-                    }
-                    catch (Exception ex)
-                    {
-                        _logger.LogError(ex, "Error extrayendo reseñas desde Base de Datos.");
-                    }
-                }, stoppingToken),
-
-                Task.Run(async () =>
-                {
-                    try
-                    {
-                        comments = await _apiExtractor.ExtractAsync(stoppingToken);
-                    }
-                    catch (Exception ex)
-                    {
-                        _logger.LogError(ex, "Error extrayendo comentarios desde la API.");
-                    }
-                }, stoppingToken)
-            };
-
-            await Task.WhenAll(tasks);
             sw.Stop();
             _logger.LogInformation("Fase de Extracción completada en {Elapsed} ms.", sw.ElapsedMilliseconds);
 
-            _logger.LogInformation("Iniciando fase de Carga (Load) a Base de Datos Analítica...");
-            using (var scope = _serviceProvider.CreateScope())
-            {
-                var context = scope.ServiceProvider.GetRequiredService<SalesAnalyticsDBContext>();
-                if (!await context.Database.CanConnectAsync(stoppingToken))
-                {
-                    _logger.LogError("No se pudo conectar a la base de datos destino.");
-                    return;
-                }
-
-                var lookup = new LookupContext();
-                var services = scope.ServiceProvider.GetRequiredService<IEnumerable<IEtlService>>();
-
-                foreach (var service in services)
-                {
-                    var serviceName = service.GetType().Name.Replace("Service", "");
-                    _logger.LogInformation("Ejecutando servicio de carga: {ServiceName}", serviceName);
-
-                    var result = await service.LoadAsync(lookup);
-                    if (result.Success)
-                    {
-                        _logger.LogInformation("[OK] {ServiceName} -> Procesados: {Processed} | Insertados: {Inserted} | Rechazados: {Rejected}",
-                            serviceName, result.Processed, result.Inserted, result.Rejected);
-                    }
-                    else
-                    {
-                        _logger.LogError("[ERROR] {ServiceName} -> {Message}", serviceName, result.Message);
-                        break;
-                    }
-                }
-            }
+            await ExecuteDatabaseLoadAsync(stoppingToken);
         }
         catch (Exception ex)
         {
@@ -179,6 +73,41 @@ public class EtlWorker : BackgroundService
         finally
         {
             _lifetime.StopApplication();
+        }
+    }
+
+    private async Task ExecuteDatabaseLoadAsync(CancellationToken stoppingToken)
+    {
+        _logger.LogInformation("Iniciando fase de Carga (Load) a Base de Datos Analítica...");
+
+        using var scope = _serviceProvider.CreateScope();
+        var context = scope.ServiceProvider.GetRequiredService<SalesAnalyticsDBContext>();
+
+        if (!await context.Database.CanConnectAsync(stoppingToken))
+        {
+            _logger.LogError("No se pudo conectar a la base de datos destino.");
+            return;
+        }
+
+        var lookup = new LookupContext();
+        var services = scope.ServiceProvider.GetRequiredService<IEnumerable<IEtlService>>();
+
+        foreach (var service in services)
+        {
+            var serviceName = service.GetType().Name.Replace("Service", "");
+            _logger.LogInformation("Ejecutando servicio de carga: {ServiceName}", serviceName);
+
+            var result = await service.LoadAsync(lookup);
+            if (result.Success)
+            {
+                _logger.LogInformation("[OK] {ServiceName} -> Procesados: {Processed} | Insertados: {Inserted} | Rechazados: {Rejected}",
+                    serviceName, result.Processed, result.Inserted, result.Rejected);
+            }
+            else
+            {
+                _logger.LogError("[ERROR] {ServiceName} -> {Message}", serviceName, result.Message);
+                break;
+            }
         }
     }
 }
