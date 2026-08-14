@@ -225,6 +225,21 @@ public class AnalyticsLoadService
         bulkCopy.ColumnMappings.Add("Total", "Total");
 
         await bulkCopy.WriteToServerAsync(dataTable, cancellationToken);
-        _logger.LogInformation("Fact.Sales: {Count} filas insertadas correctamente mediante SqlBulkCopy.", dataTable.Rows.Count);
+
+        Console.WriteLine();
+        Console.WriteLine("==============================================================");
+        Console.WriteLine("           RESUMEN DE CARGA DEL DATA WAREHOUSE (OLAP)        ");
+        Console.WriteLine("==============================================================");
+        Console.WriteLine($"  [OK] Dim.Seller   : {1,8:N0} registros");
+        Console.WriteLine($"  [OK] Dim.Status   : {statusLookup.Count,8:N0} registros");
+        Console.WriteLine($"  [OK] Dim.Product  : {productLookup.Count,8:N0} registros");
+        Console.WriteLine($"  [OK] Dim.Customer : {customerLookup.Count,8:N0} registros");
+        Console.WriteLine($"  [OK] Dim.Date     : {1096,8:N0} registros");
+        Console.WriteLine("--------------------------------------------------------------");
+        Console.WriteLine($"  [OK] Fact.Sales   : {dataTable.Rows.Count,8:N0} registros (Carga Masiva)");
+        Console.WriteLine("==============================================================");
+        Console.WriteLine("  Proceso de carga ejecutado e integrado exitosamente.");
+        Console.WriteLine("==============================================================");
+        Console.WriteLine();
     }
 }

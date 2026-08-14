@@ -18,9 +18,14 @@ public class DatabaseExtractor : IExtractor<ReviewDto>
 
     public DatabaseExtractor(IConfiguration config, ILogger<DatabaseExtractor> logger)
     {
-        _connectionString = config.GetConnectionString("VentasHistoricoExternoDB")
-            ?? throw new InvalidOperationException("La cadena de conexión 'VentasHistoricoExternoDB' no está configurada en appsettings.json.");
-        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        var connectionString = config.GetConnectionString("VentasHistoricoExternoDB");
+        if (string.IsNullOrEmpty(connectionString))
+        {
+            throw new InvalidOperationException("La cadena de conexión 'VentasHistoricoExternoDB' no está configurada en appsettings.json.");
+        }
+
+        _connectionString = connectionString;
+        _logger = logger;
     }
 
     public async Task<IEnumerable<ReviewDto>> ExtractAsync(CancellationToken cancellationToken)

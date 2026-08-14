@@ -18,9 +18,14 @@ public class SalesOrderDatabaseExtractor : IExtractor<SalesOrderExtractionDto>
 
     public SalesOrderDatabaseExtractor(IConfiguration config, ILogger<SalesOrderDatabaseExtractor> logger)
     {
-        _connectionString = config.GetConnectionString("DefaultConnection")
-            ?? throw new InvalidOperationException("La cadena de conexión 'DefaultConnection' no está configurada en appsettings.json.");
-        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        var connectionString = config.GetConnectionString("DefaultConnection");
+        if (string.IsNullOrEmpty(connectionString))
+        {
+            throw new InvalidOperationException("La cadena de conexión 'DefaultConnection' no está configurada en appsettings.json.");
+        }
+
+        _connectionString = connectionString;
+        _logger = logger;
     }
 
     public async Task<IEnumerable<SalesOrderExtractionDto>> ExtractAsync(CancellationToken cancellationToken)
