@@ -1,10 +1,8 @@
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
-using System.IO;
+using System.Linq;
 using System.Net.Http;
 using System.Net.Http.Json;
-using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -26,22 +24,15 @@ public class ApiExtractor : IExtractor<CommentDto>
 
     public async Task<IEnumerable<CommentDto>> ExtractAsync(CancellationToken cancellationToken)
     {
-        var sw = Stopwatch.StartNew();
-        var data = await _httpClient.GetFromJsonAsync<List<CommentDto>>("api/comments", cancellationToken)
-                   ?? new List<CommentDto>();
-
-        var stagingDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "staging");
-        if (!Directory.Exists(stagingDir))
+        try
         {
-            Directory.CreateDirectory(stagingDir);
+            var data = await _httpClient.GetFromJsonAsync<List<CommentDto>>("api/comments", cancellationToken);
+            return data ?? Enumerable.Empty<CommentDto>();
         }
-
-        var outputPath = Path.Combine(stagingDir, "comments.json");
-        var json = JsonSerializer.Serialize(data, new JsonSerializerOptions { WriteIndented = true });
-        await File.WriteAllTextAsync(outputPath, json, cancellationToken);
-
-        sw.Stop();
-        _logger.LogInformation("ApiExtractor: {Count} comentarios obtenidos en {Ms} ms", data.Count, sw.ElapsedMilliseconds);
-        return data;
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error extrayendo datos desde la API REST.");
+            return Enumerable.Empty<CommentDto>();
+        }
     }
 }
