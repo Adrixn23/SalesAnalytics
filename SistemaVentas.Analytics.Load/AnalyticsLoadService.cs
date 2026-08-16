@@ -41,7 +41,7 @@ public class AnalyticsLoadService
         {
             await CleanTablesAsync(cancellationToken);
             await LoadDimensionsAsync(cancellationToken);
-            await LoadFactSalesAsync(cancellationToken);
+            await LoadFactSalesViaStoredProcedureAsync(cancellationToken);
 
             _logger.LogInformation("Proceso de carga del Data Warehouse finalizado exitosamente.");
         }
@@ -124,7 +124,7 @@ public class AnalyticsLoadService
         }
     }
 
-    private async Task LoadFactSalesAsync(CancellationToken cancellationToken)
+    private async Task LoadFactSalesViaStoredProcedureAsync(CancellationToken cancellationToken)
     {
         _logger.LogInformation("Extrayendo ventas desde la base de datos OLTP...");
         var extractedSales = (await _salesExtractor.ExtractAsync(cancellationToken)).ToList();
@@ -169,7 +169,7 @@ public class AnalyticsLoadService
             }
         }
 
-        _logger.LogInformation("Insertando registros en Fact.Sales...");
+        _logger.LogInformation("Preparando estructura tipo tabla para Stored Procedure...");
 
         var dataTable = new DataTable();
         dataTable.Columns.Add("OrderID", typeof(int));
@@ -206,25 +206,18 @@ public class AnalyticsLoadService
             );
         }
 
-        using var bulkCopy = new SqlBulkCopy(dwConn)
+        using var cmdStoredProc = new SqlCommand("dbo.sp_CargarFactSalesTVP", dwConn)
         {
-            DestinationTableName = "Fact.Sales",
-            BatchSize = 5000,
-            BulkCopyTimeout = 120
+            CommandType = CommandType.StoredProcedure,
+            CommandTimeout = 180
         };
 
-        bulkCopy.ColumnMappings.Add("OrderID", "OrderID");
-        bulkCopy.ColumnMappings.Add("OrderDetailID", "OrderDetailID");
-        bulkCopy.ColumnMappings.Add("CustomerKey", "CustomerKey");
-        bulkCopy.ColumnMappings.Add("ProductKey", "ProductKey");
-        bulkCopy.ColumnMappings.Add("SellerKey", "SellerKey");
-        bulkCopy.ColumnMappings.Add("StatusKey", "StatusKey");
-        bulkCopy.ColumnMappings.Add("DateKey", "DateKey");
-        bulkCopy.ColumnMappings.Add("Quantity", "Quantity");
-        bulkCopy.ColumnMappings.Add("UnitPrice", "UnitPrice");
-        bulkCopy.ColumnMappings.Add("Total", "Total");
+        var tvpParam = cmdStoredProc.Parameters.AddWithValue("@FactSalesTable", dataTable);
+        tvpParam.SqlDbType = SqlDbType.Structured;
+        tvpParam.TypeName = "dbo.FactSalesType";
 
-        await bulkCopy.WriteToServerAsync(dataTable, cancellationToken);
+        var totalInsertadosObj = await cmdStoredProc.ExecuteScalarAsync(cancellationToken);
+        int totalInsertados = totalInsertadosObj != null ? Convert.ToInt32(totalInsertadosObj) : dataTable.Rows.Count;
 
         Console.WriteLine();
         Console.WriteLine("==============================================================");
@@ -236,7 +229,7 @@ public class AnalyticsLoadService
         Console.WriteLine($"  [OK] Dim.Customer : {customerLookup.Count,8:N0} registros");
         Console.WriteLine($"  [OK] Dim.Date     : {1096,8:N0} registros");
         Console.WriteLine("--------------------------------------------------------------");
-        Console.WriteLine($"  [OK] Fact.Sales   : {dataTable.Rows.Count,8:N0} registros (Carga Masiva)");
+        Console.WriteLine($"  [OK] Fact.Sales   : {totalInsertados,8:N0} registros (Stored Procedure TVP)");
         Console.WriteLine("==============================================================");
         Console.WriteLine("  Proceso de carga ejecutado e integrado exitosamente.");
         Console.WriteLine("==============================================================");
